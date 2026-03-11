@@ -1,14 +1,46 @@
 # -*- coding: utf-8 -*-
+import os
+import random
+import smtplib
 import threading
+import time
+from email.mime.text import MIMEText
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
 import db
 import scraper
 
+load_dotenv()
+
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
+OTP_TO    = os.environ.get("OTP_TO", SMTP_USER)
+OTP_TTL   = 300  # 5분
+
 app = Flask(__name__)
 db.init_db()
 
-# 스크래핑 상태
+# ── OTP 저장소 ─────────────────────────────
+_otp_store = {"code": None, "expires": 0}
+
+# ── 스크래핑 상태 ───────────────────────────
 _scrape_state = {"running": False, "done": 0, "total": 0, "log": []}
+
+
+def _send_otp(code):
+    msg = MIMEText(
+        f"새마을금고 금리 재수집 인증번호입니다.\n\n"
+        f"인증번호: {code}\n\n"
+        f"유효시간: 5분",
+        "plain", "utf-8"
+    )
+    msg["Subject"] = f"[금리조회] 인증번호 {code}"
+    msg["From"]    = SMTP_USER
+    msg["To"]      = OTP_TO
+
+    with smtplib.SMTP_SSL("smtp.naver.com", 465) as smtp:
+        smtp.login(SMTP_USER, SMTP_PASS)
+        smtp.sendmail(SMTP_USER, OTP_TO, msg.as_string())
 
 
 def _run_scrape():
@@ -40,23 +72,23 @@ def index():
 
 @app.route("/api/rates")
 def api_rates():
-    r1      = request.args.get("r1") or None
-    keyword = request.args.get("q") or None
-    only_m  = request.args.get("only_monthly", "false").lower() == "true"
+    import re
+    r1       = request.args.get("r1") or None
+    keyword  = request.args.get("q") or None
+    only_m   = request.args.get("only_monthly", "false").lower() == "true"
     sort_col = request.args.get("sort", "monthly_12m")
     sort_dir = request.args.get("dir", "desc")
 
     rows = db.query_rates(r1=r1, keyword=keyword, only_monthly=only_m)
 
     def rate_val(s):
-        import re
         if not s:
             return -1
         m = re.search(r"[\d.]+", str(s))
         return float(m.group()) if m else -1
 
     num_cols = {"monthly_12m", "maturity_12m"}
-    reverse = sort_dir == "desc"
+    reverse  = sort_dir == "desc"
     if sort_col in num_cols:
         rows.sort(key=lambda r: rate_val(r.get(sort_col)), reverse=reverse)
     else:
@@ -70,10 +102,44 @@ def api_stats():
     return jsonify(db.get_stats())
 
 
+# ── OTP 발송 ──────────────────────────────────
+@app.route("/api/otp/send", methods=["POST"])
+def api_otp_send():
+    if not SMTP_USER or not SMTP_PASS:
+        return jsonify({"error": "이메일 설정이 되지 않았습니다"}), 500
+
+    code = str(random.randint(100000, 999999))
+    _otp_store["code"]    = code
+    _otp_store["expires"] = time.time() + OTP_TTL
+
+    try:
+        _send_otp(code)
+    except Exception as e:
+        return jsonify({"error": f"메일 발송 실패: {e}"}), 500
+
+    masked = OTP_TO[:3] + "***" + OTP_TO[OTP_TO.index("@"):]
+    return jsonify({"message": f"{masked} 으로 인증번호를 발송했습니다"})
+
+
+# ── 스크래핑 (OTP 검증 후 실행) ──────────────
 @app.route("/api/scrape", methods=["POST"])
 def api_scrape():
+    otp = request.json.get("otp") if request.is_json else None
+
+    if not otp:
+        return jsonify({"error": "인증번호를 입력하세요"}), 400
+    if time.time() > _otp_store["expires"]:
+        return jsonify({"error": "인증번호가 만료되었습니다. 다시 요청하세요"}), 401
+    if otp != _otp_store["code"]:
+        return jsonify({"error": "인증번호가 올바르지 않습니다"}), 401
+
+    # 사용 후 즉시 무효화
+    _otp_store["code"]    = None
+    _otp_store["expires"] = 0
+
     if _scrape_state["running"]:
         return jsonify({"error": "이미 수집 중입니다"}), 409
+
     threading.Thread(target=_run_scrape, daemon=True).start()
     return jsonify({"status": "started"})
 
@@ -84,6 +150,5 @@ def api_scrape_status():
 
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)

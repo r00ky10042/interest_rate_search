@@ -188,6 +188,52 @@ th:nth-child(4) { width: 60px; }
 th:nth-child(5) { text-align: left; }
 th:nth-child(6), th:nth-child(7) { width: 110px; }
 
+/* ── Modal ──────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 32px;
+  width: 320px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal h3 { font-size: 16px; color: #1e293b; }
+.modal p  { font-size: 13px; color: #64748b; }
+.modal input[type="password"] {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+}
+.modal input[type="password"]:focus { border-color: #3b82f6; }
+.pw-error { font-size: 12px; color: #dc2626; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.btn-cancel {
+  background: #f1f5f9; color: #475569;
+  border: none; border-radius: 6px;
+  padding: 8px 16px; font-size: 13px; cursor: pointer;
+}
+.btn-cancel:hover { background: #e2e8f0; }
+.btn-confirm {
+  background: #3b82f6; color: #fff;
+  border: none; border-radius: 6px;
+  padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-confirm:hover { background: #2563eb; }
+
 /* 로딩 스피너 */
 .spinner {
   display: inline-block;

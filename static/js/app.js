@@ -109,18 +109,87 @@ searchInput.addEventListener("input", () => {
 regionSelect.addEventListener("change", loadRates);
 onlyMonthly.addEventListener("change", loadRates);
 
-/* ── Scrape ─────────────────────────────── */
-scrapeBtn.addEventListener("click", () => {
-  if (scrapeBtn.disabled) return;
-  fetch("/api/scrape", { method: "POST" })
+/* ── OTP Modal ──────────────────────────── */
+const otpModal    = document.getElementById("otpModal");
+const otpStep1    = document.getElementById("otpStep1");
+const otpStep2    = document.getElementById("otpStep2");
+const otpSendBtn  = document.getElementById("otpSendBtn");
+const otpResendBtn= document.getElementById("otpResendBtn");
+const otpConfirmBtn = document.getElementById("otpConfirmBtn");
+const otpCancelBtn  = document.getElementById("otpCancelBtn");
+const otpInput    = document.getElementById("otpInput");
+const otpSentMsg  = document.getElementById("otpSentMsg");
+const otpError    = document.getElementById("otpError");
+
+function openOtpModal() {
+  otpModal.classList.remove("hidden");
+  otpStep1.classList.remove("hidden");
+  otpStep2.classList.add("hidden");
+  otpInput.value = "";
+  otpError.classList.add("hidden");
+}
+
+function closeOtpModal() {
+  otpModal.classList.add("hidden");
+}
+
+function sendOtp() {
+  otpSendBtn.disabled = true;
+  otpSendBtn.textContent = "발송 중...";
+  fetch("/api/otp/send", { method: "POST" })
     .then(r => r.json())
     .then(res => {
+      otpSendBtn.disabled = false;
+      otpSendBtn.textContent = "인증번호 발송";
       if (res.error) { alert(res.error); return; }
+      otpSentMsg.textContent = res.message;
+      otpStep1.classList.add("hidden");
+      otpStep2.classList.remove("hidden");
+      otpInput.focus();
+    });
+}
+
+otpSendBtn.addEventListener("click", sendOtp);
+otpResendBtn.addEventListener("click", () => {
+  otpStep2.classList.add("hidden");
+  otpStep1.classList.remove("hidden");
+  sendOtp();
+});
+otpCancelBtn.addEventListener("click", closeOtpModal);
+otpModal.addEventListener("click", e => { if (e.target === otpModal) closeOtpModal(); });
+otpInput.addEventListener("keydown", e => { if (e.key === "Enter") otpConfirmBtn.click(); });
+
+otpConfirmBtn.addEventListener("click", () => {
+  const code = otpInput.value.trim();
+  if (!code) return;
+  otpConfirmBtn.disabled = true;
+  otpConfirmBtn.textContent = "확인 중...";
+  fetch("/api/scrape", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ otp: code })
+  })
+    .then(r => r.json())
+    .then(res => {
+      otpConfirmBtn.disabled = false;
+      otpConfirmBtn.textContent = "수집 시작";
+      if (res.error) {
+        otpError.textContent = res.error;
+        otpError.classList.remove("hidden");
+        return;
+      }
+      closeOtpModal();
       scrapeBtn.disabled = true;
       scrapeBtn.innerHTML = '<span class="spinner"></span>수집 중...';
       progressWrap.classList.remove("hidden");
       _scrapeTimer = setInterval(pollScrape, 1000);
     });
+});
+
+/* ── Scrape ─────────────────────────────── */
+scrapeBtn.addEventListener("click", () => {
+  if (scrapeBtn.disabled) return;
+  openOtpModal();
 });
 
 function pollScrape() {
