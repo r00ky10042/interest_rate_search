@@ -68,7 +68,9 @@ def _run_scrape():
         _scrape_state["total"] = total
 
     with db.get_conn() as conn:
-        existing = {r[0] for r in conn.execute("SELECT gmgo_cd FROM rates").fetchall()}
+        with conn.cursor() as cur:
+            cur.execute("SELECT gmgo_cd FROM rates")
+            existing = {r["gmgo_cd"] for r in cur.fetchall()}
 
     records = scraper.scrape_all(existing_codes=existing, log_cb=log, progress_cb=progress)
     db.upsert_rates(records)
