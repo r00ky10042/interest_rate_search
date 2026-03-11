@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>새마을금고 월지급식 금리 조회</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>🏦 새마을금고 금리 조회</h1>
+    <span class="subtitle">정기예탁금 12개월 이상 · 거치식예탁금</span>
+  </div>
+</header>
+
+<main>
+  <!-- 컨트롤 바 -->
+  <div class="control-bar">
+    <div class="control-left">
+      <input type="text" id="searchInput" placeholder="금고명 / 주소 검색..." autocomplete="off">
+      <select id="regionSelect">
+        <option value="">전체 지역</option>
+        <option>서울</option><option>인천</option><option>경기</option>
+        <option>강원</option><option>충남</option><option>충북</option>
+        <option>대전</option><option>세종</option><option>경북</option>
+        <option>경남</option><option>대구</option><option>부산</option>
+        <option>울산</option><option>전북</option><option>전남</option>
+        <option>광주</option><option>제주</option>
+      </select>
+      <label class="toggle-label">
+        <input type="checkbox" id="onlyMonthly" checked>
+        <span>월지급식 있는 금고만</span>
+      </label>
+    </div>
+    <div class="control-right">
+      <span id="countBadge" class="badge">-</span>
+      <button id="scrapeBtn" class="btn-scrape">🔄 금리 재수집</button>
+    </div>
+  </div>
+
+  <!-- 진행 바 (숨김) -->
+  <div id="progressWrap" class="progress-wrap hidden">
+    <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+    <span id="progressText">준비 중...</span>
+  </div>
+
+  <!-- 통계 -->
+  <div id="statsBar" class="stats-bar"></div>
+
+  <!-- 테이블 -->
+  <div class="table-wrap">
+    <table id="rateTable">
+      <thead>
+        <tr>
+          <th data-col="r1"       class="sortable">지역</th>
+          <th data-col="r2"       class="sortable">시군구</th>
+          <th data-col="name"     class="sortable">금고명</th>
+          <th data-col="div_nm">지점</th>
+          <th data-col="addr"     class="tl">주소</th>
+          <th data-col="monthly_12m"  class="sortable num">월지급식<br><small>12개월↑</small></th>
+          <th data-col="maturity_12m" class="sortable num">만기지급식<br><small>12개월↑</small></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
