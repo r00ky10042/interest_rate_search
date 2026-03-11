@@ -7,7 +7,22 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 
 def get_conn():
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    import socket
+    from urllib.parse import urlparse
+    url = urlparse(DATABASE_URL)
+    try:
+        ipv4 = socket.getaddrinfo(url.hostname, url.port, socket.AF_INET)[0][4][0]
+    except Exception:
+        ipv4 = url.hostname
+    conn = psycopg2.connect(
+        host=ipv4,
+        port=url.port,
+        dbname=url.path.lstrip("/"),
+        user=url.username,
+        password=url.password,
+        sslmode="require",
+        cursor_factory=RealDictCursor,
+    )
     return conn
 
 
