@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 import requests
+from requests.adapters import HTTPAdapter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 REGIONS = [
@@ -10,6 +11,9 @@ REGIONS = [
 CONCURRENCY = 100
 
 _session = requests.Session()
+_adapter = HTTPAdapter(pool_connections=CONCURRENCY, pool_maxsize=CONCURRENCY)
+_session.mount("https://", _adapter)
+_session.mount("http://", _adapter)
 _session.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Accept-Language": "ko-KR,ko;q=0.9",
