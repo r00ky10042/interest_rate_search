@@ -12,8 +12,17 @@ import scraper
 
 load_dotenv()
 
+def _load_smtp_pass():
+    """암호화된 비밀번호 복호화. 평문도 fallback으로 지원."""
+    enc_key  = os.environ.get("ENCRYPT_KEY", "")
+    enc_pass = os.environ.get("SMTP_PASS_ENC", "")
+    if enc_key and enc_pass:
+        from cryptography.fernet import Fernet
+        return Fernet(enc_key.encode()).decrypt(enc_pass.encode()).decode()
+    return os.environ.get("SMTP_PASS", "")  # fallback: 평문
+
 SMTP_USER = os.environ.get("SMTP_USER", "")
-SMTP_PASS = os.environ.get("SMTP_PASS", "")
+SMTP_PASS = _load_smtp_pass()
 OTP_TO    = os.environ.get("OTP_TO", SMTP_USER)
 OTP_TTL   = 300  # 5분
 
