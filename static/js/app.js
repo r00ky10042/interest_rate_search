@@ -133,6 +133,25 @@ function closeOtpModal() {
   otpModal.classList.add("hidden");
 }
 
+let _cooldownTimer = null;
+
+function startCooldown(seconds) {
+  otpResendBtn.disabled = true;
+  const tick = () => {
+    if (seconds <= 0) {
+      otpResendBtn.disabled = false;
+      otpResendBtn.textContent = "재발송";
+      return;
+    }
+    const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const s = String(seconds % 60).padStart(2, "0");
+    otpResendBtn.textContent = `재발송 (${m}:${s})`;
+    seconds--;
+    _cooldownTimer = setTimeout(tick, 1000);
+  };
+  tick();
+}
+
 function sendOtp() {
   otpSendBtn.disabled = true;
   otpSendBtn.textContent = "발송 중...";
@@ -146,6 +165,7 @@ function sendOtp() {
       otpStep1.classList.add("hidden");
       otpStep2.classList.remove("hidden");
       otpInput.focus();
+      startCooldown(180);
     });
 }
 

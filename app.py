@@ -32,7 +32,8 @@ app = Flask(__name__)
 db.init_db()
 
 # ── OTP 저장소 ─────────────────────────────
-_otp_store = {"code": None, "expires": 0}
+_otp_store = {"code": None, "expires": 0, "last_sent": 0}
+OTP_COOLDOWN = 180  # 3분
 
 # ── 스크래핑 상태 ───────────────────────────
 _scrape_state = {"running": False, "done": 0, "total": 0, "log": []}
@@ -126,9 +127,15 @@ def api_otp_send():
     if not SMTP_USER or not SMTP_PASS:
         return jsonify({"error": f"이메일 설정이 되지 않았습니다 (USER={'설정됨' if SMTP_USER else '미설정'}, PASS={'설정됨' if SMTP_PASS else '미설정'})"}), 500
 
+    since_last = time.time() - _otp_store["last_sent"]
+    if since_last < OTP_COOLDOWN:
+        remain = int(OTP_COOLDOWN - since_last)
+        return jsonify({"error": f"재발송은 {remain}초 후에 가능합니다"}), 429
+
     code = str(random.randint(100000, 999999))
-    _otp_store["code"]    = code
-    _otp_store["expires"] = time.time() + OTP_TTL
+    _otp_store["code"]      = code
+    _otp_store["expires"]   = time.time() + OTP_TTL
+    _otp_store["last_sent"] = time.time()
 
     try:
         _send_otp(code)
