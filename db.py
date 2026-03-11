@@ -45,6 +45,7 @@ def init_db():
                     visited_at   TIMESTAMP DEFAULT NOW()
                 )
             """)
+            cur.execute("DROP INDEX IF EXISTS visits_ip_date")
         conn.commit()
 
 
