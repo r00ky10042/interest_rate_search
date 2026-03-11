@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import random
-import smtplib
 import threading
 import time
-from email.mime.text import MIMEText
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
 import db
@@ -41,21 +39,14 @@ _scrape_state = {"running": False, "done": 0, "total": 0, "log": []}
 
 
 def _send_otp(code):
-    msg = MIMEText(
-        f"새마을금고 금리 재수집 인증번호입니다.\n\n"
-        f"인증번호: {code}\n\n"
-        f"유효시간: 5분",
-        "plain", "utf-8"
-    )
-    msg["Subject"] = f"[금리조회] 인증번호 {code}"
-    msg["From"]    = SMTP_USER
-    msg["To"]      = OTP_TO
-
-    with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as smtp:
-        smtp.ehlo()
-        smtp.starttls()
-        smtp.login(SMTP_USER, SMTP_PASS)
-        smtp.sendmail(SMTP_USER, OTP_TO, msg.as_string())
+    import resend
+    resend.api_key = os.environ.get("RESEND_API_KEY", "")
+    resend.Emails.send({
+        "from": "onboarding@resend.dev",
+        "to":   OTP_TO,
+        "subject": f"[금리조회] 인증번호 {code}",
+        "text": f"새마을금고 금리 재수집 인증번호입니다.\n\n인증번호: {code}\n\n유효시간: 5분",
+    })
 
 
 def _run_scrape():
