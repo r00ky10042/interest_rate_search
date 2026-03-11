@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-"""기존 kfcc_rates.json → SQLite DB 마이그레이션"""
-import json, sys, os
+"""기존 kfcc_rates.json → Supabase PostgreSQL 마이그레이션"""
+import json, os, sys
+from dotenv import load_dotenv
+load_dotenv()
 sys.path.insert(0, os.path.dirname(__file__))
 import db
 
@@ -23,4 +25,4 @@ records = [{
 } for r in data]
 
 db.upsert_rates(records)
-print(f"마이그레이션 완료: {len(records)}개")
+print(f"마이그레이션 완료: {len(records)}개 → Supabase")
