@@ -165,6 +165,16 @@ def api_scrape():
     if _scrape_state["running"]:
         return jsonify({"error": "이미 수집 중입니다"}), 409
 
+    # 오늘 이미 수집했는지 확인
+    with db.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COUNT(*) AS cnt FROM scrape_log
+                WHERE status='done' AND finished_at >= CURRENT_DATE
+            """)
+            if cur.fetchone()["cnt"] > 0:
+                return jsonify({"error": "오늘은 이미 금리 수집을 완료했습니다. 내일 다시 시도해주세요"}), 429
+
     threading.Thread(target=_run_scrape, daemon=True).start()
     return jsonify({"status": "started"})
 
