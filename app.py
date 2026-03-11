@@ -74,6 +74,11 @@ def _run_scrape():
 
 
 # ── Routes ──────────────────────────────────────
+@app.route("/ads.txt")
+def ads_txt():
+    return "google.com, pub-5283512698876643, DIRECT, f08c47fec0942fa0", 200, {"Content-Type": "text/plain"}
+
+
 @app.route("/")
 def index():
     ip = request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
