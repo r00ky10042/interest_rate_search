@@ -17,12 +17,16 @@ def _load_smtp_pass():
     enc_key  = os.environ.get("ENCRYPT_KEY", "")
     enc_pass = os.environ.get("SMTP_PASS_ENC", "")
     if enc_key and enc_pass:
-        from cryptography.fernet import Fernet
-        return Fernet(enc_key.encode()).decrypt(enc_pass.encode()).decode()
+        try:
+            from cryptography.fernet import Fernet
+            return Fernet(enc_key.encode()).decrypt(enc_pass.encode()).decode()
+        except Exception as e:
+            print(f"[ERROR] 비밀번호 복호화 실패: {e}")
     return os.environ.get("SMTP_PASS", "")  # fallback: 평문
 
 SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = _load_smtp_pass()
+print(f"[CONFIG] SMTP_USER={'설정됨' if SMTP_USER else '미설정'}, SMTP_PASS={'설정됨' if SMTP_PASS else '미설정'}")
 OTP_TO    = os.environ.get("OTP_TO", SMTP_USER)
 OTP_TTL   = 300  # 5분
 
@@ -112,10 +116,20 @@ def api_stats():
 
 
 # ── OTP 발송 ──────────────────────────────────
+@app.route("/api/config/check")
+def api_config_check():
+    """환경변수 설정 상태 확인 (비밀번호 노출 없이)"""
+    return jsonify({
+        "SMTP_USER":     "설정됨" if SMTP_USER else "미설정",
+        "SMTP_PASS":     "설정됨" if SMTP_PASS else "미설정",
+        "ENCRYPT_KEY":   "설정됨" if os.environ.get("ENCRYPT_KEY") else "미설정",
+        "SMTP_PASS_ENC": "설정됨" if os.environ.get("SMTP_PASS_ENC") else "미설정",
+    })
+
 @app.route("/api/otp/send", methods=["POST"])
 def api_otp_send():
     if not SMTP_USER or not SMTP_PASS:
-        return jsonify({"error": "이메일 설정이 되지 않았습니다"}), 500
+        return jsonify({"error": f"이메일 설정이 되지 않았습니다 (USER={'설정됨' if SMTP_USER else '미설정'}, PASS={'설정됨' if SMTP_PASS else '미설정'})"}), 500
 
     code = str(random.randint(100000, 999999))
     _otp_store["code"]    = code
