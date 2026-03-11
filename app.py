@@ -76,6 +76,8 @@ def _run_scrape():
 # ── Routes ──────────────────────────────────────
 @app.route("/")
 def index():
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
+    db.record_visit(ip)
     return render_template("index.html")
 
 
@@ -109,6 +111,11 @@ def api_rates():
 @app.route("/api/stats")
 def api_stats():
     return jsonify(db.get_stats())
+
+
+@app.route("/api/visits")
+def api_visits():
+    return jsonify(db.get_visit_stats())
 
 
 # ── OTP 발송 ──────────────────────────────────

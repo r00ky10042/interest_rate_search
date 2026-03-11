@@ -37,6 +37,18 @@ def init_db():
                     status      TEXT
                 )
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS visits (
+                    id           SERIAL PRIMARY KEY,
+                    ip           TEXT,
+                    visited_date DATE DEFAULT CURRENT_DATE,
+                    visited_at   TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS visits_ip_date
+                ON visits (ip, visited_date)
+            """)
         conn.commit()
 
 
@@ -105,6 +117,27 @@ def get_stats():
         "last_updated": str(last) if last else None,
         "last_scrape":  dict(last_scrape) if last_scrape else None,
     }
+
+
+def record_visit(ip):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO visits (ip, visited_date, visited_at)
+                VALUES (%s, CURRENT_DATE, NOW())
+                ON CONFLICT (ip, visited_date) DO NOTHING
+            """, (ip,))
+        conn.commit()
+
+
+def get_visit_stats():
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(DISTINCT ip) AS cnt FROM visits WHERE visited_date = CURRENT_DATE")
+            today = cur.fetchone()["cnt"]
+            cur.execute("SELECT COUNT(DISTINCT ip) AS cnt FROM visits")
+            total = cur.fetchone()["cnt"]
+    return {"today": today, "total": total}
 
 
 def log_scrape_start():

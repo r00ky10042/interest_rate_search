@@ -13,6 +13,7 @@ const progressWrap = document.getElementById("progressWrap");
 const progressFill = document.getElementById("progressFill");
 const progressText = document.getElementById("progressText");
 const statsBar     = document.getElementById("statsBar");
+const visitBar     = document.getElementById("visitBar");
 
 /* ── Fetch & Render ─────────────────────── */
 function loadRates() {
@@ -235,6 +236,16 @@ function pollScrape() {
     });
 }
 
+/* ── Visits ─────────────────────────────── */
+function loadVisits() {
+  fetch("/api/visits")
+    .then(r => r.json())
+    .then(v => {
+      visitBar.textContent = `오늘 방문자: ${v.today.toLocaleString()}명 | 누적 방문자: ${v.total.toLocaleString()}명`;
+    });
+}
+
 /* ── Init ───────────────────────────────── */
 loadRates();
 loadStats();
+loadVisits();
