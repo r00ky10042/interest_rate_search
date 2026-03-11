@@ -120,7 +120,7 @@ def record_visit(ip):
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO visits (ip, visited_date, visited_at)
-                VALUES (%s, CURRENT_DATE, NOW())
+                VALUES (%s, (NOW() AT TIME ZONE 'Asia/Seoul')::date, NOW())
             """, (ip,))
         conn.commit()
 
@@ -128,7 +128,7 @@ def record_visit(ip):
 def get_visit_stats():
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) AS cnt FROM visits WHERE visited_date = CURRENT_DATE")
+            cur.execute("SELECT COUNT(*) AS cnt FROM visits WHERE visited_date = (NOW() AT TIME ZONE 'Asia/Seoul')::date")
             today = cur.fetchone()["cnt"]
             cur.execute("SELECT COUNT(*) AS cnt FROM visits")
             total = cur.fetchone()["cnt"]

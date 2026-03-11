@@ -177,7 +177,8 @@ def api_scrape():
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT COUNT(*) AS cnt FROM scrape_log
-                WHERE status='done' AND finished_at >= CURRENT_DATE
+                WHERE status='done'
+                  AND finished_at >= (NOW() AT TIME ZONE 'Asia/Seoul')::date
             """)
             if cur.fetchone()["cnt"] > 0:
                 return jsonify({"error": "오늘은 이미 금리 수집을 완료했습니다. 내일 다시 시도해주세요"}), 429
