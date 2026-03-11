@@ -51,7 +51,9 @@ def _send_otp(code):
     msg["From"]    = SMTP_USER
     msg["To"]      = OTP_TO
 
-    with smtplib.SMTP_SSL("smtp.naver.com", 465) as smtp:
+    with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
         smtp.login(SMTP_USER, SMTP_PASS)
         smtp.sendmail(SMTP_USER, OTP_TO, msg.as_string())
 
