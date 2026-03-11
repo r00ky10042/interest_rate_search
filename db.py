@@ -74,7 +74,8 @@ def query_rates(r1=None, keyword=None, only_monthly=False):
         kw = f"%{keyword}%"
         params += [kw, kw, kw]
     if only_monthly:
-        sql += " AND has_monthly = 1 AND monthly_12m IS NOT NULL AND monthly_12m NOT IN ('연0.0%','연0%')"
+        sql += " AND has_monthly = 1 AND monthly_12m IS NOT NULL AND monthly_12m NOT IN (%s, %s)"
+        params += ['연0.0%', '연0%']
     sql += " ORDER BY CAST(REGEXP_REPLACE(COALESCE(monthly_12m,'0'), '[^0-9.]', '', 'g') AS NUMERIC) DESC NULLS LAST"
 
     with get_conn() as conn:
@@ -89,7 +90,7 @@ def get_stats():
             cur.execute("SELECT COUNT(*) AS cnt FROM rates")
             total = cur.fetchone()["cnt"]
 
-            cur.execute("SELECT COUNT(*) AS cnt FROM rates WHERE has_monthly=1 AND monthly_12m NOT IN ('연0.0%','연0%')")
+            cur.execute("SELECT COUNT(*) AS cnt FROM rates WHERE has_monthly=1 AND monthly_12m NOT IN (%s, %s)", ['연0.0%', '연0%'])
             monthly = cur.fetchone()["cnt"]
 
             cur.execute("SELECT MAX(updated_at) AS last FROM rates")
