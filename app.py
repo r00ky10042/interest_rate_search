@@ -3,6 +3,7 @@ import os
 import threading
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
+from apscheduler.schedulers.background import BackgroundScheduler
 import db
 import scraper
 
@@ -109,6 +110,11 @@ def api_scrape():
 def api_scrape_status():
     return jsonify(_scrape_state)
 
+
+# ── 스케줄러 (매일 07:00 KST 자동 수집) ────────
+_scheduler = BackgroundScheduler(timezone="Asia/Seoul")
+_scheduler.add_job(_run_scrape, "cron", hour=7, minute=0)
+_scheduler.start()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

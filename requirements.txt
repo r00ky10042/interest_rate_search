@@ -3,6 +3,5 @@ requests
 beautifulsoup4
 gunicorn
 python-dotenv
-cryptography
 psycopg2-binary
-resend
+apscheduler
