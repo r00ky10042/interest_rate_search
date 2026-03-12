@@ -107,7 +107,7 @@ def get_stats():
             cur.execute("SELECT COUNT(*) AS cnt FROM rates WHERE has_monthly=1 AND monthly_12m NOT IN (%s, %s)", ['연0.0%', '연0%'])
             monthly = cur.fetchone()["cnt"]
 
-            cur.execute("SELECT MAX(updated_at AT TIME ZONE 'Asia/Seoul') AS last FROM rates")
+            cur.execute("SELECT MAX(updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') AS last FROM rates")
             last = cur.fetchone()["last"]
 
             cur.execute("SELECT started_at, finished_at, status FROM scrape_log ORDER BY id DESC LIMIT 1")
