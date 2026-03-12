@@ -45,8 +45,13 @@ def init_db():
                     visited_at   TIMESTAMP DEFAULT NOW()
                 )
             """)
-            cur.execute("DROP INDEX IF EXISTS visits_ip_date")
         conn.commit()
+
+    # 별도 트랜잭션으로 불필요한 유니크 인덱스 제거
+    with get_conn() as conn:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("DROP INDEX IF EXISTS visits_ip_date")
 
 
 def upsert_rates(records):
@@ -102,7 +107,7 @@ def get_stats():
             cur.execute("SELECT COUNT(*) AS cnt FROM rates WHERE has_monthly=1 AND monthly_12m NOT IN (%s, %s)", ['연0.0%', '연0%'])
             monthly = cur.fetchone()["cnt"]
 
-            cur.execute("SELECT MAX(updated_at) AS last FROM rates")
+            cur.execute("SELECT MAX(updated_at AT TIME ZONE 'Asia/Seoul') AS last FROM rates")
             last = cur.fetchone()["last"]
 
             cur.execute("SELECT started_at, finished_at, status FROM scrape_log ORDER BY id DESC LIMIT 1")
