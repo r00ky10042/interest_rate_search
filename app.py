@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
-import random
 import threading
-import time
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template
 import db
@@ -10,44 +8,14 @@ import scraper
 
 load_dotenv()
 
-def _load_smtp_pass():
-    """암호화된 비밀번호 복호화. 평문도 fallback으로 지원."""
-    enc_key  = os.environ.get("ENCRYPT_KEY", "")
-    enc_pass = os.environ.get("SMTP_PASS_ENC", "")
-    if enc_key and enc_pass:
-        try:
-            from cryptography.fernet import Fernet
-            return Fernet(enc_key.encode()).decrypt(enc_pass.encode()).decode()
-        except Exception as e:
-            print(f"[ERROR] 비밀번호 복호화 실패: {e}")
-    return os.environ.get("SMTP_PASS", "")  # fallback: 평문
-
-SMTP_USER = os.environ.get("SMTP_USER", "")
-SMTP_PASS = _load_smtp_pass()
-print(f"[CONFIG] SMTP_USER={'설정됨' if SMTP_USER else '미설정'}, SMTP_PASS={'설정됨' if SMTP_PASS else '미설정'}")
-OTP_TO    = os.environ.get("OTP_TO", SMTP_USER)
-OTP_TTL   = 300  # 5분
+SCRAPE_PASSWORD = os.environ.get("SCRAPE_PASSWORD", "")
+print(f"[CONFIG] SCRAPE_PASSWORD={'설정됨' if SCRAPE_PASSWORD else '미설정'}")
 
 app = Flask(__name__)
 db.init_db()
 
-# ── OTP 저장소 ─────────────────────────────
-_otp_store = {"code": None, "expires": 0, "last_sent": 0}
-OTP_COOLDOWN = 180  # 3분
-
 # ── 스크래핑 상태 ───────────────────────────
 _scrape_state = {"running": False, "done": 0, "total": 0, "log": []}
-
-
-def _send_otp(code):
-    import resend
-    resend.api_key = os.environ.get("RESEND_API_KEY", "")
-    resend.Emails.send({
-        "from": "onboarding@resend.dev",
-        "to":   OTP_TO,
-        "subject": f"[금리조회] 인증번호 {code}",
-        "text": f"새마을금고 금리 재수집 인증번호입니다.\n\n인증번호: {code}\n\n유효시간: 5분",
-    })
 
 
 def _run_scrape():
@@ -61,12 +29,7 @@ def _run_scrape():
         _scrape_state["done"] = done
         _scrape_state["total"] = total
 
-    with db.get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT gmgo_cd FROM rates")
-            existing = {r["gmgo_cd"] for r in cur.fetchall()}
-
-    records = scraper.scrape_all(existing_codes=existing, log_cb=log, progress_cb=progress)
+    records = scraper.scrape_all(log_cb=log, progress_cb=progress)
     db.upsert_rates(records)
     db.log_scrape_done(log_id, len(records))
     _scrape_state["running"] = False
@@ -123,70 +86,20 @@ def api_visits():
     return jsonify(db.get_visit_stats())
 
 
-# ── OTP 발송 ──────────────────────────────────
-@app.route("/api/config/check")
-def api_config_check():
-    """환경변수 설정 상태 확인 (비밀번호 노출 없이)"""
-    return jsonify({
-        "SMTP_USER":     "설정됨" if SMTP_USER else "미설정",
-        "SMTP_PASS":     "설정됨" if SMTP_PASS else "미설정",
-        "ENCRYPT_KEY":   "설정됨" if os.environ.get("ENCRYPT_KEY") else "미설정",
-        "SMTP_PASS_ENC": "설정됨" if os.environ.get("SMTP_PASS_ENC") else "미설정",
-    })
-
-@app.route("/api/otp/send", methods=["POST"])
-def api_otp_send():
-    if not SMTP_USER or not SMTP_PASS:
-        return jsonify({"error": f"이메일 설정이 되지 않았습니다 (USER={'설정됨' if SMTP_USER else '미설정'}, PASS={'설정됨' if SMTP_PASS else '미설정'})"}), 500
-
-    since_last = time.time() - _otp_store["last_sent"]
-    if since_last < OTP_COOLDOWN:
-        remain = int(OTP_COOLDOWN - since_last)
-        return jsonify({"error": f"재발송은 {remain}초 후에 가능합니다"}), 429
-
-    code = str(random.randint(100000, 999999))
-    _otp_store["code"]      = code
-    _otp_store["expires"]   = time.time() + OTP_TTL
-    _otp_store["last_sent"] = time.time()
-
-    try:
-        _send_otp(code)
-    except Exception as e:
-        return jsonify({"error": f"메일 발송 실패: {e}"}), 500
-
-    masked = OTP_TO[:3] + "***" + OTP_TO[OTP_TO.index("@"):]
-    return jsonify({"message": f"{masked} 으로 인증번호를 발송했습니다"})
-
-
-# ── 스크래핑 (OTP 검증 후 실행) ──────────────
+# ── 스크래핑 (비밀번호 검증 후 실행) ──────────────
 @app.route("/api/scrape", methods=["POST"])
 def api_scrape():
-    otp = request.json.get("otp") if request.is_json else None
+    pw = request.json.get("password") if request.is_json else None
 
-    if not otp:
-        return jsonify({"error": "인증번호를 입력하세요"}), 400
-    if time.time() > _otp_store["expires"]:
-        return jsonify({"error": "인증번호가 만료되었습니다. 다시 요청하세요"}), 401
-    if otp != _otp_store["code"]:
-        return jsonify({"error": "인증번호가 올바르지 않습니다"}), 401
-
-    # 사용 후 즉시 무효화
-    _otp_store["code"]    = None
-    _otp_store["expires"] = 0
+    if not pw:
+        return jsonify({"error": "비밀번호를 입력하세요"}), 400
+    if not SCRAPE_PASSWORD:
+        return jsonify({"error": "서버에 SCRAPE_PASSWORD가 설정되지 않았습니다"}), 500
+    if pw != SCRAPE_PASSWORD:
+        return jsonify({"error": "비밀번호가 올바르지 않습니다"}), 401
 
     if _scrape_state["running"]:
         return jsonify({"error": "이미 수집 중입니다"}), 409
-
-    # 오늘 이미 수집했는지 확인
-    with db.get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT COUNT(*) AS cnt FROM scrape_log
-                WHERE status='done'
-                  AND finished_at >= (NOW() AT TIME ZONE 'Asia/Seoul')::date
-            """)
-            if cur.fetchone()["cnt"] > 0:
-                return jsonify({"error": "오늘은 이미 금리 수집을 완료했습니다. 내일 다시 시도해주세요"}), 429
 
     threading.Thread(target=_run_scrape, daemon=True).start()
     return jsonify({"status": "started"})

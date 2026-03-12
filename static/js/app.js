@@ -110,96 +110,48 @@ searchInput.addEventListener("input", () => {
 regionSelect.addEventListener("change", loadRates);
 onlyMonthly.addEventListener("change", loadRates);
 
-/* ── OTP Modal ──────────────────────────── */
-const otpModal    = document.getElementById("otpModal");
-const otpStep1    = document.getElementById("otpStep1");
-const otpStep2    = document.getElementById("otpStep2");
-const otpSendBtn  = document.getElementById("otpSendBtn");
-const otpResendBtn= document.getElementById("otpResendBtn");
-const otpConfirmBtn = document.getElementById("otpConfirmBtn");
-const otpCancelBtn  = document.getElementById("otpCancelBtn");
-const otpInput    = document.getElementById("otpInput");
-const otpSentMsg  = document.getElementById("otpSentMsg");
-const otpError    = document.getElementById("otpError");
+/* ── Password Modal ─────────────────────── */
+const pwModal      = document.getElementById("pwModal");
+const pwInput      = document.getElementById("pwInput");
+const pwError      = document.getElementById("pwError");
+const pwCancelBtn  = document.getElementById("pwCancelBtn");
+const pwConfirmBtn = document.getElementById("pwConfirmBtn");
 
-function openOtpModal() {
-  otpModal.classList.remove("hidden");
-  otpStep1.classList.remove("hidden");
-  otpStep2.classList.add("hidden");
-  otpInput.value = "";
-  otpError.classList.add("hidden");
+function openPwModal() {
+  pwModal.classList.remove("hidden");
+  pwInput.value = "";
+  pwError.classList.add("hidden");
+  setTimeout(() => pwInput.focus(), 50);
 }
 
-function closeOtpModal() {
-  otpModal.classList.add("hidden");
+function closePwModal() {
+  pwModal.classList.add("hidden");
 }
 
-let _cooldownTimer = null;
+pwCancelBtn.addEventListener("click", closePwModal);
+pwModal.addEventListener("click", e => { if (e.target === pwModal) closePwModal(); });
+pwInput.addEventListener("keydown", e => { if (e.key === "Enter") pwConfirmBtn.click(); });
 
-function startCooldown(seconds) {
-  otpResendBtn.disabled = true;
-  const tick = () => {
-    if (seconds <= 0) {
-      otpResendBtn.disabled = false;
-      otpResendBtn.textContent = "재발송";
-      return;
-    }
-    const m = String(Math.floor(seconds / 60)).padStart(2, "0");
-    const s = String(seconds % 60).padStart(2, "0");
-    otpResendBtn.textContent = `재발송 (${m}:${s})`;
-    seconds--;
-    _cooldownTimer = setTimeout(tick, 1000);
-  };
-  tick();
-}
-
-function sendOtp() {
-  otpSendBtn.disabled = true;
-  otpSendBtn.textContent = "발송 중...";
-  fetch("/api/otp/send", { method: "POST" })
-    .then(r => r.json())
-    .then(res => {
-      otpSendBtn.disabled = false;
-      otpSendBtn.textContent = "인증번호 발송";
-      if (res.error) { alert(res.error); return; }
-      otpSentMsg.textContent = res.message;
-      otpStep1.classList.add("hidden");
-      otpStep2.classList.remove("hidden");
-      otpInput.focus();
-      startCooldown(180);
-    });
-}
-
-otpSendBtn.addEventListener("click", sendOtp);
-otpResendBtn.addEventListener("click", () => {
-  otpStep2.classList.add("hidden");
-  otpStep1.classList.remove("hidden");
-  sendOtp();
-});
-otpCancelBtn.addEventListener("click", closeOtpModal);
-otpModal.addEventListener("click", e => { if (e.target === otpModal) closeOtpModal(); });
-otpInput.addEventListener("keydown", e => { if (e.key === "Enter") otpConfirmBtn.click(); });
-
-otpConfirmBtn.addEventListener("click", () => {
-  const code = otpInput.value.trim();
-  if (!code) return;
-  otpConfirmBtn.disabled = true;
-  otpConfirmBtn.textContent = "확인 중...";
+pwConfirmBtn.addEventListener("click", () => {
+  const pw = pwInput.value;
+  if (!pw) return;
+  pwConfirmBtn.disabled = true;
+  pwConfirmBtn.textContent = "확인 중...";
   fetch("/api/scrape", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ otp: code })
+    body: JSON.stringify({ password: pw })
   })
     .then(r => r.json())
     .then(res => {
-      otpConfirmBtn.disabled = false;
-      otpConfirmBtn.textContent = "수집 시작";
+      pwConfirmBtn.disabled = false;
+      pwConfirmBtn.textContent = "수집 시작";
       if (res.error) {
-        otpError.textContent = res.error;
-        otpError.classList.remove("hidden");
+        pwError.textContent = res.error;
+        pwError.classList.remove("hidden");
         return;
       }
-      closeOtpModal();
+      closePwModal();
       scrapeBtn.disabled = true;
       scrapeBtn.innerHTML = '<span class="spinner"></span>수집 중...';
       progressWrap.classList.remove("hidden");
@@ -210,7 +162,7 @@ otpConfirmBtn.addEventListener("click", () => {
 /* ── Scrape ─────────────────────────────── */
 scrapeBtn.addEventListener("click", () => {
   if (scrapeBtn.disabled) return;
-  openOtpModal();
+  openPwModal();
 });
 
 function pollScrape() {
